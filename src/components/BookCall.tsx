@@ -16,6 +16,7 @@ import {
   generateYahooCalendarUrl,
   generateICSFile,
 } from "@/lib/calendar-utils";
+import { sendEmail, sendEmailToOwner } from "@/lib/email-service";
 
 const BookCall = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -51,9 +52,9 @@ const BookCall = () => {
       // Generate ICS file content (to include in email body)
       const icsContent = generateICSFile(calendarEvent);
 
-      // Create email content for site owner (sender's email)
-      const ownerEmailSubject = encodeURIComponent(`Meeting Request from ${email} - ${formattedDate} at ${time}`);
-      const ownerEmailBody = encodeURIComponent(
+      // Create email content for site owner
+      const ownerEmailSubject = `Meeting Request from ${email} - ${formattedDate} at ${time}`;
+      const ownerEmailBody = 
         `Hello,\n\n` +
         `You have received a new meeting request:\n\n` +
         `From: ${email}\n` +
@@ -62,12 +63,11 @@ const BookCall = () => {
         `Purpose of Meeting:\n${purpose}\n\n` +
         `Google Meet Link: ${meetLink}\n\n` +
         `Please confirm or suggest an alternative time if needed.\n\n` +
-        `Best regards`
-      );
+        `Best regards`;
 
-      // Create email content for user (sender) - includes ICS file content
-      const userEmailSubject = encodeURIComponent(`Meeting Confirmation - ${formattedDate} at ${time}`);
-      const userEmailBody = encodeURIComponent(
+      // Create email content for user - includes ICS file content
+      const userEmailSubject = `Meeting Confirmation - ${formattedDate} at ${time}`;
+      const userEmailBody = 
         `Hello,\n\n` +
         `Thank you for scheduling a meeting with us!\n\n` +
         `Meeting Details:\n` +
@@ -87,28 +87,86 @@ const BookCall = () => {
         `4. Double-click the file to add it to your calendar\n\n` +
         `We're looking forward to meeting with you!\n\n` +
         `Best regards,\n` +
-        `DivIdeas Team`
-      );
+        `DivIdeas Team`;
 
-      // Create mailto links - sender sends to user's email and CC to owner
-      // The FROM email will be rchandrashaker292004@gmail.com when they send
-      const userMailtoLink = `mailto:${email}?cc=rchandrashaker292004@gmail.com&subject=${userEmailSubject}&body=${userEmailBody}`;
-      const ownerMailtoLink = `mailto:rchandrashaker292004@gmail.com?cc=${encodeURIComponent(email)}&subject=${ownerEmailSubject}&body=${ownerEmailBody}`;
+      // Send emails automatically using EmailJS
+      const emailParams = {
+        toEmail: email,
+        subject: userEmailSubject,
+        body: userEmailBody,
+        meetingDate: formattedDate,
+        meetingTime: time,
+        purpose: purpose,
+        meetLink: meetLink,
+        icsContent: icsContent,
+      };
 
-      // Open email client to send to user (with ICS content in body)
-      // The sender will send from their email client (rchandrashaker292004@gmail.com)
-      window.location.href = userMailtoLink;
+      const ownerEmailParams = {
+        toEmail: 'rchandrashaker292004@gmail.com',
+        subject: ownerEmailSubject,
+        body: ownerEmailBody,
+        meetingDate: formattedDate,
+        meetingTime: time,
+        purpose: purpose,
+        meetLink: meetLink,
+      };
+
+      // Show loading toast
+      toast({
+        title: "Sending emails...",
+        description: "Please wait while we send the meeting confirmation emails.",
+      });
+
+      // Log for debugging
+      console.log('📧 Attempting to send emails:', {
+        to: email,
+        owner: 'rchandrashaker292004@gmail.com',
+      });
+
+      // Send both emails
+      const [userEmailSent, ownerEmailSent] = await Promise.all([
+        sendEmail(emailParams),
+        sendEmailToOwner(ownerEmailParams),
+      ]);
+
+      console.log('📧 Email send results:', {
+        userEmailSent,
+        ownerEmailSent,
+      });
+
+      if (userEmailSent && ownerEmailSent) {
+        toast({
+          title: "Emails sent successfully!",
+          description: `Meeting confirmation has been sent to ${email} and rchandrashaker292004@gmail.com`,
+        });
+      } else if (userEmailSent) {
+        toast({
+          title: "Partially sent",
+          description: `Email sent to ${email}, but failed to send to owner. Please check EmailJS configuration.`,
+          variant: "destructive",
+        });
+      } else if (ownerEmailSent) {
+        toast({
+          title: "Partially sent",
+          description: `Email sent to owner, but failed to send to ${email}. Please check EmailJS configuration.`,
+          variant: "destructive",
+        });
+      } else {
+        // Fallback to mailto if EmailJS is not configured
+        const userMailtoLink = `mailto:${email}?cc=rchandrashaker292004@gmail.com&subject=${encodeURIComponent(userEmailSubject)}&body=${encodeURIComponent(userEmailBody)}`;
+        window.location.href = userMailtoLink;
+        
+        toast({
+          title: "EmailJS not configured",
+          description: "Please configure EmailJS to send emails automatically. Opening email client as fallback.",
+          variant: "destructive",
+        });
+      }
 
       // Generate calendar links
       const googleCalendarUrl = generateGoogleCalendarUrl(calendarEvent);
       const outlookCalendarUrl = generateOutlookCalendarUrl(calendarEvent);
       const yahooCalendarUrl = generateYahooCalendarUrl(calendarEvent);
-
-      // Show success toast
-      toast({
-        title: "Email Prepared!",
-        description: `An email with the calendar invite has been prepared. Please send it from your email client.`,
-      });
 
       // Store calendar links in sessionStorage for access
       sessionStorage.setItem('calendarLinks', JSON.stringify({

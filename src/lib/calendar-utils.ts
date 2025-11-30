@@ -144,13 +144,16 @@ export const generateYahooCalendarUrl = (event: CalendarEvent): string => {
  * Note: For production, you should use Google Calendar API to generate actual Meet links
  */
 export const generateGoogleMeetLink = (): string => {
-  // Generate a unique meeting ID
-  const chars = 'abcdefghijklmnopqrstuvwxyz';
-  const meetingId = Array.from({ length: 12 }, () => 
-    chars[Math.floor(Math.random() * chars.length)]
-  ).join('');
+  // Fixed meeting link - replace with your actual meeting link
+  // All meetings will use this same link: https://meet.google.com/rkd-adkh-rwi
+  return 'https://meet.google.com/rkd-adkh-rwi';
   
-  return `https://meet.google.com/${meetingId}`;
+  // Option: Generate unique meeting ID (uncomment to use dynamic links)
+  // const chars = 'abcdefghijklmnopqrstuvwxyz';
+  // const meetingId = Array.from({ length: 12 }, () => 
+  //   chars[Math.floor(Math.random() * chars.length)]
+  // ).join('');
+  // return `https://meet.google.com/${meetingId}`;
 };
 
 /**
